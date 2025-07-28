@@ -9,13 +9,14 @@ import (
 	cmdCopy "github.com/playbymail/otto/cli/copy"
 	cmdInfo "github.com/playbymail/otto/cli/info"
 	cmdVersion "github.com/playbymail/otto/cli/version"
+	"github.com/playbymail/otto/config"
 	"github.com/spf13/cobra"
 	"log"
 	"os"
 )
 
 var (
-	version = semver.Version{Minor: 1}
+	version = semver.Version{Minor: 2}
 )
 
 func main() {
@@ -27,6 +28,8 @@ func main() {
 		}
 	}
 
+	cfg := &config.Config_t{}
+
 	cmdRoot := &cobra.Command{
 		Use:   "otto",
 		Short: "otto command line utility",
@@ -34,6 +37,9 @@ func main() {
 	}
 
 	cmdRoot.AddCommand(cmdCopy.Command)
+	if err := cmdCopy.RegisterArgs(cfg); err != nil {
+		log.Fatal(err)
+	}
 	cmdRoot.AddCommand(cmdInfo.Command)
 	cmdRoot.AddCommand(cmdVersion.Command)
 
