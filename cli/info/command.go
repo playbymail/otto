@@ -104,15 +104,16 @@ var Command = &cobra.Command{
 			fmt.Printf("\t%8s xml encoding\n", xmlHeaders[xmlHeaderIndex].encoding)
 			fmt.Printf("\t%8d bytes xml data\n", len(input))
 
-			// skip past the xml header so that we will be able to unmarshal the input
-			input = input[len(xmlHeaders[xmlHeaderIndex].heading):]
-			if !bytes.HasPrefix(input, []byte("<map ")) {
+			// skip past the xml header so that we will be able to unmarshal
+			// the input to fetch the map metadata.
+			data := input[len(xmlHeaders[xmlHeaderIndex].heading):]
+			if !bytes.HasPrefix(data, []byte("<map ")) {
 				fmt.Printf("\tmissing <map> element\n")
 				continue
 			}
 
 			// read the map metadata
-			xmlMetaData, err := readMapMetadata(input)
+			xmlMetaData, err := readMapMetadata(data)
 			if err != nil {
 				fmt.Printf("\t%v\n", err)
 				continue
@@ -131,11 +132,16 @@ var Command = &cobra.Command{
 				continue
 			}
 
-			_, err = xmlio.Read(input)
+			// read the XML from the input (including the header)
+			w, err := xmlio.ReadUTF8XML(bytes.NewReader(input))
 			if err != nil {
 				fmt.Printf("\t%v\n", err)
 				continue
 			}
+
+			fmt.Printf("\t%8d tiles high\n", w.Tiles.TilesHigh)
+			fmt.Printf("\t%8d tiles wide\n", w.Tiles.TilesWide)
+			fmt.Printf("\t%8d terrain tiles defined\n", len(w.TerrainMap.List))
 		}
 		return nil
 	},

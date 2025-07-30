@@ -9,7 +9,6 @@ import (
 	"github.com/maloquacious/wxx/xmlio"
 	"github.com/playbymail/otto/config"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 var Command = &cobra.Command{
@@ -22,16 +21,14 @@ var Command = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("could not read --from: %w", err)
 		}
-		data, err := os.ReadFile(from)
-		if err != nil {
-			return errors.Join(fmt.Errorf("copy: os.ReadFile"), err)
-		}
-		_, err = xmlio.Read(data)
+		w, err := xmlio.ReadFile(from)
 		if err != nil {
 			return errors.Join(fmt.Errorf("copy: xmlio.Read"), err)
 		}
-
-		return nil
+		fmt.Printf("\t%8d tiles high\n", w.Tiles.TilesHigh)
+		fmt.Printf("\t%8d tiles wide\n", w.Tiles.TilesWide)
+		fmt.Printf("\t%8d terrain tiles defined\n", len(w.TerrainMap.List))
+		return fmt.Errorf("not implemented")
 	},
 }
 
