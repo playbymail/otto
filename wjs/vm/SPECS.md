@@ -54,16 +54,29 @@ The `Map` type is a Go struct loaded from `.wxx` files, passed through `load()` 
 
 ## Environment
 
-The environment is a flat key-value map (no block scoping):
+The VM maintains two separate environments for security and sandboxing:
 
 ```go
-type Env struct {
-    vars map[string]Value
+type VM struct {
+    vars   map[string]Value // user-accessible environment: variables and functions
+    env    map[string]Value // sandboxed environment: only accessible by builtin functions
+    script string           // current script filename
 }
 ```
 
-* `let x = ...` binds a value
-* `x = ...` updates an existing binding or raises an error if not declared
+### User Environment (`vars`)
+- Contains variables and functions accessible by user code
+- `let x = ...` binds a value in this environment
+- `x = ...` updates an existing binding or raises an error if not declared
+- User scripts can read and write these values
+
+### Sandboxed Environment (`env`)
+- Contains sensitive values only accessible by builtin functions
+- User scripts **cannot** access these values directly
+- Only builtin functions like `load()`, `save()`, and `print()` can access `env`
+- Used for secure configuration, credentials, file paths, etc.
+
+This dual-environment model provides secure sandboxing where user code is isolated from sensitive system resources.
 
 ---
 
@@ -164,14 +177,20 @@ No panics should escape evaluation.
 
 ## Entry Point
 
-The VM should expose a single entry function:
+The VM should expose constructor and execution functions:
 
 ```go
-func Eval(prog *ast.Program, env *Env) (Value, *RuntimeError)
+func New(script string, funcs map[string]Callable, env map[string]Value) *VM
+func (vm *VM) Execute(program *ast.Program) (Value, *RuntimeError)
 ```
 
-* Evaluates the program
-* Returns last expression result (if any) and a runtime error (if any)
+* `New()` creates a VM instance with:
+  - `script`: filename for error reporting
+  - `funcs`: additional functions to inject (can override builtins for testing)
+  - `env`: sandboxed environment values (only accessible by builtins)
+* `Execute()` evaluates the program and returns the last expression result (if any) and a runtime error (if any)
+* Functions are added to the user environment (`vars`) after builtins
+* Environment values are added to the sandboxed environment (`env`)
 
 ---
 

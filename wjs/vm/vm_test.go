@@ -5,6 +5,7 @@ package vm
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/playbymail/otto/wjs/ast"
 	"github.com/playbymail/otto/wjs/domain"
@@ -139,10 +140,12 @@ func TestVM_LetStatements(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.input, func(t *testing.T) {
-			vm := New("test")
+			vm := New("test", nil, nil)
 			program := parseInput(test.input)
 			
-			_, err := vm.Execute(program)
+			_, err := runWithTimeout(func() (Value, *RuntimeError) {
+				return vm.Execute(program)
+			})
 			if err != nil {
 				t.Fatalf("Runtime error: %v", err)
 			}
@@ -205,7 +208,7 @@ func TestVM_BuiltinPrint(t *testing.T) {
 		return nil, nil
 	}
 	
-	vm := New("test")
+	vm := New("test", nil, nil)
 	vm.vars["print"] = &builtinFunc{
 		name:  "print",
 		arity: -1,
@@ -215,7 +218,9 @@ func TestVM_BuiltinPrint(t *testing.T) {
 	input := `print("hello", "world");`
 	program := parseInput(input)
 	
-	_, err := vm.Execute(program)
+	_, err := runWithTimeout(func() (Value, *RuntimeError) {
+		return vm.Execute(program)
+	})
 	if err != nil {
 		t.Fatalf("Runtime error: %v", err)
 	}
@@ -262,10 +267,12 @@ func TestVM_TemplateStrings(t *testing.T) {
 		let greeting = "hello";
 	`
 	
-	vm := New("test")
+	vm := New("test", nil, nil)
 	program := parseInput(input)
 	
-	_, err := vm.Execute(program)
+	_, err := runWithTimeout(func() (Value, *RuntimeError) {
+		return vm.Execute(program)
+	})
 	if err != nil {
 		t.Fatalf("Runtime error: %v", err)
 	}
@@ -281,30 +288,59 @@ func TestVM_TemplateStrings(t *testing.T) {
 
 // Helper functions
 
+// TODO: Consider adding a timeout option to vm.Execute() for production use
+// to prevent infinite loops or long-running operations from hanging the VM.
+
+// runWithTimeout executes a function with a 1-second timeout
+func runWithTimeout[T any](fn func() (T, *RuntimeError)) (T, *RuntimeError) {
+	type result struct {
+		value T
+		err   *RuntimeError
+	}
+	
+	ch := make(chan result, 1)
+	go func() {
+		value, err := fn()
+		ch <- result{value, err}
+	}()
+	
+	select {
+	case res := <-ch:
+		return res.value, res.err
+	case <-time.After(1 * time.Second):
+		var zero T
+		return zero, NewRuntimeError(domain.Pos{}, "test timeout: execution took longer than 1 second")
+	}
+}
+
 func evalExpression(input string) (Value, *RuntimeError) {
-	vm := New("test")
-	tokens := getAllTokens(input)
-	p := parser.New(tokens)
-	program := p.ParseProgram()
-	
-	if len(program.Stmts) == 0 {
-		return nil, NewRuntimeError(domain.Pos{}, "no statements to evaluate")
-	}
-	
-	// Treat single expression as expression statement
-	if len(program.Stmts) == 1 {
-		if exprStmt, ok := program.Stmts[0].(*ast.ExprStmt); ok {
-			return vm.evalExpr(exprStmt.Value)
+	return runWithTimeout(func() (Value, *RuntimeError) {
+		vm := New("test", nil, nil)
+		tokens := getAllTokens(input)
+		p := parser.New(tokens)
+		program := p.ParseProgram()
+		
+		if len(program.Stmts) == 0 {
+			return nil, NewRuntimeError(domain.Pos{}, "no statements to evaluate")
 		}
-	}
-	
-	return vm.Execute(program)
+		
+		// Treat single expression as expression statement
+		if len(program.Stmts) == 1 {
+			if exprStmt, ok := program.Stmts[0].(*ast.ExprStmt); ok {
+				return vm.evalExpr(exprStmt.Value)
+			}
+		}
+		
+		return vm.Execute(program)
+	})
 }
 
 func evalProgram(input string) (Value, *RuntimeError) {
-	vm := New("test")
-	program := parseInput(input)
-	return vm.Execute(program)
+	return runWithTimeout(func() (Value, *RuntimeError) {
+		vm := New("test", nil, nil)
+		program := parseInput(input)
+		return vm.Execute(program)
+	})
 }
 
 func parseInput(input string) *ast.Program {

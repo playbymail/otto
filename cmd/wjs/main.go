@@ -113,7 +113,7 @@ func executeCode(filename, input string) {
 
 	// TODO: if we're going to check semantics, check them here
 
-	svm := vm.New(filename)
+	svm := vm.New(filename, nil, nil)
 	result, err := svm.Execute(prog)
 	if err != nil {
 		fmt.Println("Error:", err)

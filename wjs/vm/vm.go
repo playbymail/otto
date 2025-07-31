@@ -9,21 +9,39 @@ import (
 	"github.com/playbymail/otto/wjs/domain"
 )
 
-func New(script string) *VM {
+func New(script string, funcs map[string]Callable, env map[string]Value) *VM {
 	vm := &VM{
 		vars:   map[string]Value{},
+		env:    map[string]Value{},
 		script: script,
 	}
-	// Register built-in functions
+	
+	// Register built-in functions first
 	builtins := RegisterBuiltins(vm.defaultLoad, vm.defaultSave)
 	for name, fn := range builtins {
 		vm.vars[name] = fn
 	}
+	
+	// Add injected functions (can override builtins for testing)
+	if funcs != nil {
+		for name, fn := range funcs {
+			vm.vars[name] = fn
+		}
+	}
+	
+	// Add environment values (sandboxed - only accessible to builtin functions, not user code)
+	if env != nil {
+		for name, value := range env {
+			vm.env[name] = value
+		}
+	}
+	
 	return vm
 }
 
 type VM struct {
-	vars   map[string]Value // environment: variables and functions
+	vars   map[string]Value // environment: variables and functions accessible by user code
+	env    map[string]Value // sandboxed environment: only accessible by builtin functions, not user code
 	script string           // current script filename
 }
 
