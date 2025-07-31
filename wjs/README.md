@@ -7,6 +7,7 @@ WJS is a script for working with Worldographer files.
 
 * Read and modify Worldographer `.wxx` files.
 * Enable basic scripting operations over map data.
+* Use a syntax similar to Javascript to decrease learning time for new users.
 
 ---
 
