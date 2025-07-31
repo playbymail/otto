@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	version = semver.Version{Minor: 7, Patch: 1, Build: semver.Commit()}
+	version = semver.Version{Minor: 8, Patch: 0, Build: semver.Commit()}
 )
 
 func Version() semver.Version {
