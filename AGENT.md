@@ -5,9 +5,9 @@ This is the repository for `otto`, a command line tool for TribeNet maps using W
 
 ## Project Structure
     project-root/
-    ├── cli/                 # Root for Cobra commands
-    │   └── info/            # example of command path
-    │       └── command.go   # example of command code
+    ├── cmd/                 # Command line applications go here
+    │   ├── otto/            # Otto command
+    │   └── wjs/             # WJS script runner
     │
     ├── deploy/              # Deployment scripts and configs
     │   ├── deploy.sh
@@ -25,6 +25,14 @@ This is the repository for `otto`, a command line tool for TribeNet maps using W
     ├── tools/               # Development scripts and tools
     │   └── ... (dev tools, bash scripts, etc.)
     │
+    ├── wjs/                 # WJS script engine
+    │   ├── ast/             # AST code
+    │   ├── domain/          # Shared type definitions and errors
+    │   ├── lexer/           # Lexer code
+    │   ├── parser/          # Parser code
+    │   ├── vm/              # VM code
+    │   └── main.go          # WJS script runner
+    │
     ├── .gitattributes
     ├── .gitignore
     ├── go.mod
@@ -35,11 +43,13 @@ This is the repository for `otto`, a command line tool for TribeNet maps using W
     └── ... (CI/CD configs, etc.)
 
 ## Commands
-- Build otto: `go build -o dist/otto/otto`
-- Version info: `dist/otto version`
-- Tests: `go test ./...`
-- Format code: `go fmt ./...`
-- Build for Linux: get version then `GOOS=linux GOARCH=amd64 go build -o dist/linux/otto-${VERSION}`
+* Otto command:
+  * Build otto: `go build -o dist/local/otto`
+  * Version info: `dist/local/otto version`
+  * Tests: `go test ./...`
+  * Format code: `go fmt ./...`
+  * Build for Linux: get version then `GOOS=linux GOARCH=amd64 go build -o dist/linux/otto-${VERSION}`
+* WJS runner: `go build -o dist/local/wjs ./wjs`
 
 ## Code Style
 - Standard Go formatting using `gofmt`

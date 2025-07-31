@@ -5,25 +5,21 @@ package main
 
 import (
 	"fmt"
-	"github.com/maloquacious/semver"
-	cmdCopy "github.com/playbymail/otto/cli/copy"
-	cmdInfo "github.com/playbymail/otto/cli/info"
-	cmdVersion "github.com/playbymail/otto/cli/version"
+	"github.com/playbymail/otto"
+	cmdCopy "github.com/playbymail/otto/cmd/otto/copy"
+	cmdInfo "github.com/playbymail/otto/cmd/otto/info"
+	cmdVersion "github.com/playbymail/otto/cmd/otto/version"
 	"github.com/playbymail/otto/config"
 	"github.com/spf13/cobra"
 	"log"
 	"os"
 )
 
-var (
-	version = semver.Version{Minor: 3, Build: semver.Commit()}
-)
-
 func main() {
 	// versions hack
 	for _, arg := range os.Args {
 		if arg == "version" || arg == "-version" || arg == "--version" {
-			fmt.Printf("%s\n", version.String())
+			fmt.Printf("%s\n", otto.Version().String())
 			os.Exit(0)
 		}
 	}
