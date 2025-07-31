@@ -92,6 +92,10 @@ func (vm *VM) evalExpr(expr ast.Expr) (Value, *RuntimeError) {
 		return vm.evalNumberLit(e)
 	case *ast.StringLit:
 		return vm.evalStringLit(e)
+	case *ast.BooleanLit:
+		return vm.evalBooleanLit(e)
+	case *ast.NullLit:
+		return vm.evalNullLit(e)
 	case *ast.Ident:
 		return vm.evalIdent(e)
 	case *ast.BinaryExpr:
@@ -208,6 +212,14 @@ func (vm *VM) evalNumberLit(lit *ast.NumberLit) (Value, *RuntimeError) {
 
 func (vm *VM) evalStringLit(lit *ast.StringLit) (Value, *RuntimeError) {
 	return lit.Value, nil
+}
+
+func (vm *VM) evalBooleanLit(lit *ast.BooleanLit) (Value, *RuntimeError) {
+	return lit.Value, nil
+}
+
+func (vm *VM) evalNullLit(lit *ast.NullLit) (Value, *RuntimeError) {
+	return nil, nil
 }
 
 func (vm *VM) evalIdent(ident *ast.Ident) (Value, *RuntimeError) {

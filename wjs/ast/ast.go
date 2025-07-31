@@ -77,6 +77,21 @@ type StringLit struct {
 func (e *StringLit) Pos() domain.Pos { return e.Start }
 func (e *StringLit) isExpr()         {}
 
+type BooleanLit struct {
+	Start domain.Pos
+	Value bool
+}
+
+func (e *BooleanLit) Pos() domain.Pos { return e.Start }
+func (e *BooleanLit) isExpr()         {}
+
+type NullLit struct {
+	Start domain.Pos
+}
+
+func (e *NullLit) Pos() domain.Pos { return e.Start }
+func (e *NullLit) isExpr()         {}
+
 type TemplateLit struct {
 	Start domain.Pos
 	Parts []TemplatePart // e.g., ["foo", expr, "bar"]

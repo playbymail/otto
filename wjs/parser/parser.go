@@ -229,6 +229,8 @@ func (p *Parser) parsePrimaryExpression() ast.Expr {
 		return p.parseStringLiteral()
 	case lexer.TEMPLATE:
 		return p.parseTemplateLiteral()
+	case lexer.TRUE, lexer.FALSE, lexer.NULL:
+		return p.parseBooleanOrNullLiteral()
 	case lexer.MINUS, lexer.BANG:
 		return p.parseUnaryExpression()
 	case lexer.LPAREN:
@@ -291,6 +293,28 @@ func (p *Parser) parseTemplateLiteral() ast.Expr {
 				Value: token.Lexeme,
 			},
 		},
+	}
+}
+
+func (p *Parser) parseBooleanOrNullLiteral() ast.Expr {
+	token := p.advance()
+	switch token.Type {
+	case lexer.TRUE:
+		return &ast.BooleanLit{
+			Start: token.Pos,
+			Value: true,
+		}
+	case lexer.FALSE:
+		return &ast.BooleanLit{
+			Start: token.Pos,
+			Value: false,
+		}
+	case lexer.NULL:
+		return &ast.NullLit{
+			Start: token.Pos,
+		}
+	default:
+		return nil
 	}
 }
 
