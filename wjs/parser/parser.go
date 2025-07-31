@@ -12,7 +12,7 @@ type Parser struct {
 }
 
 func New(tokens []lexer.Token) *Parser {
-	return &Parser{}
+	return &Parser{tokens: tokens}
 }
 
 func (p *Parser) ParseProgram() *ast.Program {
