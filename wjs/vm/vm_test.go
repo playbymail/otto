@@ -140,7 +140,7 @@ func TestVM_LetStatements(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.input, func(t *testing.T) {
-			vm := New("test", nil, nil)
+			vm := New("test", nil, nil, nil)
 			program := parseInput(test.input)
 			
 			_, err := runWithTimeout(func() (Value, *RuntimeError) {
@@ -208,7 +208,7 @@ func TestVM_BuiltinPrint(t *testing.T) {
 		return nil, nil
 	}
 	
-	vm := New("test", nil, nil)
+	vm := New("test", nil, nil, nil)
 	vm.vars["print"] = &builtinFunc{
 		name:  "print",
 		arity: -1,
@@ -267,7 +267,7 @@ func TestVM_TemplateStrings(t *testing.T) {
 		let greeting = "hello";
 	`
 	
-	vm := New("test", nil, nil)
+	vm := New("test", nil, nil, nil)
 	program := parseInput(input)
 	
 	_, err := runWithTimeout(func() (Value, *RuntimeError) {
@@ -315,7 +315,7 @@ func runWithTimeout[T any](fn func() (T, *RuntimeError)) (T, *RuntimeError) {
 
 func evalExpression(input string) (Value, *RuntimeError) {
 	return runWithTimeout(func() (Value, *RuntimeError) {
-		vm := New("test", nil, nil)
+		vm := New("test", nil, nil, nil)
 		tokens := getAllTokens(input)
 		p := parser.New(tokens)
 		program := p.ParseProgram()
@@ -337,7 +337,7 @@ func evalExpression(input string) (Value, *RuntimeError) {
 
 func evalProgram(input string) (Value, *RuntimeError) {
 	return runWithTimeout(func() (Value, *RuntimeError) {
-		vm := New("test", nil, nil)
+		vm := New("test", nil, nil, nil)
 		program := parseInput(input)
 		return vm.Execute(program)
 	})

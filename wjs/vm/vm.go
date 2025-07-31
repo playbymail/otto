@@ -9,7 +9,7 @@ import (
 	"github.com/playbymail/otto/wjs/domain"
 )
 
-func New(script string, funcs map[string]Callable, env map[string]Value) *VM {
+func New(script string, funcs map[string]Callable, env map[string]Value, vars map[string]Value) *VM {
 	vm := &VM{
 		vars:   map[string]Value{},
 		env:    map[string]Value{},
@@ -26,6 +26,13 @@ func New(script string, funcs map[string]Callable, env map[string]Value) *VM {
 	if funcs != nil {
 		for name, fn := range funcs {
 			vm.vars[name] = fn
+		}
+	}
+	
+	// Add injected variables (can override builtins and functions)
+	if vars != nil {
+		for name, value := range vars {
+			vm.vars[name] = value
 		}
 	}
 	

@@ -113,7 +113,15 @@ func executeCode(filename, input string) {
 
 	// TODO: if we're going to check semantics, check them here
 
-	svm := vm.New(filename, nil, nil)
+	// Create metadata object for VM
+	wjsMeta := vm.Object{
+		"version": otto.Version().Short(),
+	}
+	vars := map[string]vm.Value{
+		"_wjs": wjsMeta,
+	}
+	
+	svm := vm.New(filename, nil, nil, vars)
 	result, err := svm.Execute(prog)
 	if err != nil {
 		fmt.Println("Error:", err)
