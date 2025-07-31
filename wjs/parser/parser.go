@@ -170,11 +170,14 @@ var precedences = map[lexer.TokenType]int{
 	lexer.EQEQ:     EQUALS,
 	lexer.BANGEQ:   EQUALS,
 	lexer.LT:       LESSGREATER,
+	lexer.LTEQ:     LESSGREATER,
 	lexer.GT:       LESSGREATER,
+	lexer.GTEQ:     LESSGREATER,
 	lexer.PLUS:     SUM,
 	lexer.MINUS:    SUM,
 	lexer.ASTERISK: PRODUCT,
 	lexer.SLASH:    PRODUCT,
+	lexer.PERCENT:  PRODUCT,
 	lexer.LPAREN:   CALL,
 	lexer.DOT:      INDEX,
 	lexer.LBRACK:   INDEX,
@@ -199,8 +202,8 @@ func (p *Parser) parseExpressionWithPrecedence(precedence int) ast.Expr {
 
 	for p.peek().Type != lexer.SEMICOLON && p.peek().Type != lexer.EOF && precedence < p.peekPrecedence() {
 		switch p.peek().Type {
-		case lexer.PLUS, lexer.MINUS, lexer.ASTERISK, lexer.SLASH,
-			lexer.EQEQ, lexer.BANGEQ, lexer.LT, lexer.GT:
+		case lexer.PLUS, lexer.MINUS, lexer.ASTERISK, lexer.SLASH, lexer.PERCENT,
+			lexer.EQEQ, lexer.BANGEQ, lexer.LT, lexer.LTEQ, lexer.GT, lexer.GTEQ:
 			left = p.parseBinaryExpression(left)
 		case lexer.LPAREN:
 			left = p.parseCallExpression(left)
@@ -245,26 +248,26 @@ func (p *Parser) parseIdentifier() ast.Expr {
 
 func (p *Parser) parseNumberLiteral() ast.Expr {
 	token := p.advance()
-	
+
 	// Try to parse as integer first
 	if intValue, err := strconv.Atoi(token.Lexeme); err == nil {
 		val := int64(intValue)
 		return &ast.NumberLit{
-			Start:   token.Pos,
-			IntVal:  &val,
+			Start:    token.Pos,
+			IntVal:   &val,
 			FloatVal: nil,
 		}
 	}
-	
+
 	// If not an integer, try parsing as float
 	if floatValue, err := strconv.ParseFloat(token.Lexeme, 64); err == nil {
 		return &ast.NumberLit{
-			Start:   token.Pos,
-			IntVal:  nil,
+			Start:    token.Pos,
+			IntVal:   nil,
 			FloatVal: &floatValue,
 		}
 	}
-	
+
 	return nil // error: invalid number
 }
 

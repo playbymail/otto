@@ -3,16 +3,18 @@
 // Package lexer implements a lexical scanner for WJS
 package lexer
 
-import "github.com/playbymail/otto/wjs/domain"
+import (
+	"github.com/playbymail/otto/wjs/domain"
+)
 
 type Lexer struct {
 	script   string // set only when running from a script
 	input    string
-	position int // current position in input (points to current char)
-	readPos  int // current reading position in input (after current char)
+	position int  // current position in input (points to current char)
+	readPos  int  // current reading position in input (after current char)
 	ch       byte // current char under examination
-	line     int // current line
-	column   int // current column
+	line     int  // current line
+	column   int  // current column
 }
 
 func New(script, input string) *Lexer {
@@ -158,7 +160,7 @@ func (l *Lexer) readChar() {
 	}
 	l.position = l.readPos
 	l.readPos++
-	
+
 	if l.ch == '\n' {
 		l.line++
 		l.column = 1
@@ -193,7 +195,7 @@ func (l *Lexer) readNumber() string {
 	for isDigit(l.ch) {
 		l.readChar()
 	}
-	
+
 	// Handle decimal numbers
 	if l.ch == '.' && isDigit(l.peekChar()) {
 		l.readChar()
@@ -201,7 +203,7 @@ func (l *Lexer) readNumber() string {
 			l.readChar()
 		}
 	}
-	
+
 	return l.input[position:l.position]
 }
 
@@ -244,7 +246,7 @@ func isDigit(ch byte) bool {
 // AllTokens returns all tokens in the input as a slice, ending with EOF.
 func (l *Lexer) AllTokens() []Token {
 	var tokens []Token
-	
+
 	for {
 		tok := l.NextToken()
 		tokens = append(tokens, tok)
@@ -252,6 +254,6 @@ func (l *Lexer) AllTokens() []Token {
 			break
 		}
 	}
-	
+
 	return tokens
 }

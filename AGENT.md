@@ -44,12 +44,12 @@ This is the repository for `otto`, a command line tool for TribeNet maps using W
 
 ## Commands
 * Otto command:
-  * Build otto: `go build -o dist/local/otto`
+  * Build otto: `go build -o dist/local/otto ./cmd/otto`
   * Version info: `dist/local/otto version`
   * Tests: `go test ./...`
   * Format code: `go fmt ./...`
   * Build for Linux: get version then `GOOS=linux GOARCH=amd64 go build -o dist/linux/otto-${VERSION}`
-* WJS runner: `go build -o dist/local/wjs ./wjs`
+* WJS runner: `go build -o dist/local/wjs ./cmd/wjs`
 
 ## Code Style
 - Standard Go formatting using `gofmt`

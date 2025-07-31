@@ -5,6 +5,8 @@ package vm
 
 import (
 	"fmt"
+	"log"
+
 	"github.com/playbymail/otto/wjs/ast"
 	"github.com/playbymail/otto/wjs/domain"
 )
@@ -15,34 +17,34 @@ func New(script string, funcs map[string]Callable, env map[string]Value, vars ma
 		env:    map[string]Value{},
 		script: script,
 	}
-	
+
 	// Register built-in functions first
 	builtins := RegisterBuiltins(vm.defaultLoad, vm.defaultSave)
 	for name, fn := range builtins {
 		vm.vars[name] = fn
 	}
-	
+
 	// Add injected functions (can override builtins for testing)
 	if funcs != nil {
 		for name, fn := range funcs {
 			vm.vars[name] = fn
 		}
 	}
-	
+
 	// Add injected variables (can override builtins and functions)
 	if vars != nil {
 		for name, value := range vars {
 			vm.vars[name] = value
 		}
 	}
-	
+
 	// Add environment values (sandboxed - only accessible to builtin functions, not user code)
 	if env != nil {
 		for name, value := range env {
 			vm.env[name] = value
 		}
 	}
-	
+
 	return vm
 }
 
@@ -55,7 +57,7 @@ type VM struct {
 // Execute runs the program and returns the last expression result (if any) and any runtime error.
 func (vm *VM) Execute(program *ast.Program) (Value, *RuntimeError) {
 	var lastValue Value
-	
+
 	for _, stmt := range program.Stmts {
 		result, err := vm.evalStmt(stmt)
 		if err != nil {
@@ -65,7 +67,7 @@ func (vm *VM) Execute(program *ast.Program) (Value, *RuntimeError) {
 			lastValue = result
 		}
 	}
-	
+
 	return lastValue, nil
 }
 
@@ -125,7 +127,7 @@ func (vm *VM) evalAssignStmt(stmt *ast.AssignStmt) (Value, *RuntimeError) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	switch lhs := stmt.Target.(type) {
 	case *ast.Ident:
 		// Simple variable assignment
@@ -134,7 +136,7 @@ func (vm *VM) evalAssignStmt(stmt *ast.AssignStmt) (Value, *RuntimeError) {
 		}
 		vm.vars[lhs.Name] = value
 		return value, nil
-		
+
 	case *ast.MemberExpr:
 		// Object member assignment: obj.field = value
 		obj, err := vm.evalExpr(lhs.Object)
@@ -147,7 +149,7 @@ func (vm *VM) evalAssignStmt(stmt *ast.AssignStmt) (Value, *RuntimeError) {
 		}
 		objMap[lhs.Field.Name] = value
 		return value, nil
-		
+
 	case *ast.IndexExpr:
 		// Array/object index assignment: arr[i] = value or obj[key] = value
 		target, err := vm.evalExpr(lhs.Target)
@@ -158,7 +160,7 @@ func (vm *VM) evalAssignStmt(stmt *ast.AssignStmt) (Value, *RuntimeError) {
 		if err != nil {
 			return nil, err
 		}
-		
+
 		if arr, ok := target.([]Value); ok {
 			// Array assignment
 			idx, ok := index.(float64)
@@ -182,7 +184,7 @@ func (vm *VM) evalAssignStmt(stmt *ast.AssignStmt) (Value, *RuntimeError) {
 		} else {
 			return nil, NewRuntimeError(lhs.Pos(), "cannot index assign to non-array/non-object")
 		}
-		
+
 	default:
 		return nil, NewRuntimeError(stmt.Pos(), "invalid assignment target")
 	}
@@ -225,7 +227,7 @@ func (vm *VM) evalBinaryExpr(expr *ast.BinaryExpr) (Value, *RuntimeError) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	switch expr.Operator {
 	case "+":
 		return vm.evalAdd(left, right, expr.Pos())
@@ -259,7 +261,7 @@ func (vm *VM) evalUnaryExpr(expr *ast.UnaryExpr) (Value, *RuntimeError) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	switch expr.Operator {
 	case "-":
 		if IsNumber(operand) {
@@ -288,12 +290,12 @@ func (vm *VM) evalCallExpr(expr *ast.CallExpr) (Value, *RuntimeError) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	callable, ok := callee.(Callable)
 	if !ok {
 		return nil, NewRuntimeError(expr.Pos(), "value is not callable")
 	}
-	
+
 	args := make([]Value, len(expr.Args))
 	for i, argExpr := range expr.Args {
 		arg, err := vm.evalExpr(argExpr)
@@ -302,7 +304,7 @@ func (vm *VM) evalCallExpr(expr *ast.CallExpr) (Value, *RuntimeError) {
 		}
 		args[i] = arg
 	}
-	
+
 	return callable.Call(expr.Pos(), args)
 }
 
@@ -311,7 +313,7 @@ func (vm *VM) evalMemberExpr(expr *ast.MemberExpr) (Value, *RuntimeError) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if objMap, ok := obj.(Object); ok {
 		value, exists := objMap[expr.Field.Name]
 		if !exists {
@@ -319,7 +321,7 @@ func (vm *VM) evalMemberExpr(expr *ast.MemberExpr) (Value, *RuntimeError) {
 		}
 		return value, nil
 	}
-	
+
 	return nil, NewRuntimeError(expr.Pos(), "cannot access property of non-object")
 }
 
@@ -332,7 +334,7 @@ func (vm *VM) evalIndexExpr(expr *ast.IndexExpr) (Value, *RuntimeError) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if arr, ok := target.([]Value); ok {
 		// Array indexing
 		idx, ok := index.(float64)
@@ -356,7 +358,7 @@ func (vm *VM) evalIndexExpr(expr *ast.IndexExpr) (Value, *RuntimeError) {
 		}
 		return value, nil
 	}
-	
+
 	return nil, NewRuntimeError(expr.Pos(), "cannot index non-array/non-object")
 }
 
@@ -385,7 +387,7 @@ func (vm *VM) evalAdd(left, right Value, pos domain.Pos) (Value, *RuntimeError) 
 		if !ok {
 			return nil, NewRuntimeError(pos, "invalid numbers for + operator")
 		}
-		
+
 		switch aVal := a.(type) {
 		case int64:
 			return aVal + b.(int64), nil
@@ -407,7 +409,7 @@ func (vm *VM) evalSubtract(left, right Value, pos domain.Pos) (Value, *RuntimeEr
 		if !ok {
 			return nil, NewRuntimeError(pos, "invalid numbers for - operator")
 		}
-		
+
 		switch aVal := a.(type) {
 		case int64:
 			return aVal - b.(int64), nil
@@ -426,7 +428,7 @@ func (vm *VM) evalMultiply(left, right Value, pos domain.Pos) (Value, *RuntimeEr
 		if !ok {
 			return nil, NewRuntimeError(pos, "invalid numbers for * operator")
 		}
-		
+
 		switch aVal := a.(type) {
 		case int64:
 			return aVal * b.(int64), nil
@@ -457,27 +459,24 @@ func (vm *VM) evalDivide(left, right Value, pos domain.Pos) (Value, *RuntimeErro
 
 func (vm *VM) evalModulus(left, right Value, pos domain.Pos) (Value, *RuntimeError) {
 	if IsNumber(left) && IsNumber(right) {
-		a, b, ok := PromoteNumbers(left, right)
-		if !ok {
-			return nil, NewRuntimeError(pos, "invalid numbers for %% operator")
+		log.Printf("evalModulus 1\n")
+		// Modulus operation requires both operands to be integers
+		leftInt, leftOk := left.(int64)
+		log.Printf("evalModulus 1\n")
+		rightInt, rightOk := right.(int64)
+		log.Printf("evalModulus 1\n")
+
+		if !leftOk || !rightOk {
+			return nil, NewRuntimeError(pos, "%% operator requires integer operands")
 		}
-		
-		switch aVal := a.(type) {
-		case int64:
-			bVal := b.(int64)
-			if bVal == 0 {
-				return nil, NewRuntimeError(pos, "modulus by zero")
-			}
-			return aVal % bVal, nil
-		case float64:
-			bVal := b.(float64)
-			if bVal == 0 {
-				return nil, NewRuntimeError(pos, "modulus by zero")
-			}
-			return float64(int64(aVal) % int64(bVal)), nil
-		default:
-			return nil, NewRuntimeError(pos, "unexpected number type in %% operator")
+		log.Printf("evalModulus 1\n")
+
+		if rightInt == 0 {
+			return nil, NewRuntimeError(pos, "modulus by zero")
 		}
+		log.Printf("evalModulus 1\n")
+
+		return leftInt % rightInt, nil
 	}
 	return nil, NewRuntimeError(pos, "%% operator requires numbers")
 }
@@ -488,7 +487,7 @@ func (vm *VM) evalLess(left, right Value, pos domain.Pos) (Value, *RuntimeError)
 		if !ok {
 			return nil, NewRuntimeError(pos, "invalid numbers for < operator")
 		}
-		
+
 		switch aVal := a.(type) {
 		case int64:
 			return aVal < b.(int64), nil
@@ -507,7 +506,7 @@ func (vm *VM) evalGreater(left, right Value, pos domain.Pos) (Value, *RuntimeErr
 		if !ok {
 			return nil, NewRuntimeError(pos, "invalid numbers for > operator")
 		}
-		
+
 		switch aVal := a.(type) {
 		case int64:
 			return aVal > b.(int64), nil
@@ -526,7 +525,7 @@ func (vm *VM) evalLessEqual(left, right Value, pos domain.Pos) (Value, *RuntimeE
 		if !ok {
 			return nil, NewRuntimeError(pos, "invalid numbers for <= operator")
 		}
-		
+
 		switch aVal := a.(type) {
 		case int64:
 			return aVal <= b.(int64), nil
@@ -545,7 +544,7 @@ func (vm *VM) evalGreaterEqual(left, right Value, pos domain.Pos) (Value, *Runti
 		if !ok {
 			return nil, NewRuntimeError(pos, "invalid numbers for >= operator")
 		}
-		
+
 		switch aVal := a.(type) {
 		case int64:
 			return aVal >= b.(int64), nil
