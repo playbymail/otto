@@ -107,7 +107,7 @@ func executeCode(filename, input string) {
 	prog := p.ParseProgram()
 
 	if debugMode {
-		fmt.Printf("AST: %d statements\n", 0)
+		fmt.Printf("AST: %d statements\n", len(prog.Stmts))
 		fmt.Println("---")
 	}
 

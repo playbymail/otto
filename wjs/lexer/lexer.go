@@ -51,7 +51,7 @@ func (l *Lexer) NextToken() Token {
 			tok.Type = BANGEQ
 			tok.Lexeme = string(ch) + string(l.ch)
 		} else {
-			tok.Type = ILLEGAL
+			tok.Type = BANG
 			tok.Lexeme = string(l.ch)
 		}
 	case '<':

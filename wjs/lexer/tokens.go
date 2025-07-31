@@ -27,6 +27,7 @@ const (
 	ASTERISK // *
 	SLASH    // /
 	PERCENT  // %
+	BANG     // !
 
 	EQEQ   // ==
 	BANGEQ // !=
@@ -117,6 +118,8 @@ func (tt TokenType) String() string {
 		return "/"
 	case PERCENT:
 		return "%"
+	case BANG:
+		return "!"
 	case EQEQ:
 		return "=="
 	case BANGEQ:
