@@ -45,8 +45,12 @@ func NewRuntimeError(pos domain.Pos, format string, args ...any) *RuntimeError {
 // Type checking helpers
 
 func IsNumber(v Value) bool {
-	_, ok := v.(float64)
-	return ok
+	switch v.(type) {
+	case int64, float64:
+		return true
+	default:
+		return false
+	}
 }
 
 func IsString(v Value) bool {
@@ -83,10 +87,10 @@ func Stringify(v Value) string {
 			return "true"
 		}
 		return "false"
+	case int64:
+		return strconv.FormatInt(val, 10)
 	case float64:
-		// drop .0 suffix for integers
-		s := strconv.FormatFloat(val, 'f', -1, 64)
-		return s
+		return strconv.FormatFloat(val, 'f', -1, 64)
 	case string:
 		return val
 	case []Value:
@@ -124,4 +128,45 @@ func Stringify(v Value) string {
 // Equal returns true if a and b are deeply equal.
 func Equal(a, b Value) bool {
 	return reflect.DeepEqual(a, b)
+}
+
+// ToFloat64 converts any number (int64 or float64) to float64
+func ToFloat64(v Value) (float64, bool) {
+	switch val := v.(type) {
+	case int64:
+		return float64(val), true
+	case float64:
+		return val, true
+	default:
+		return 0, false
+	}
+}
+
+// PromoteNumbers converts two numeric values and returns them as the appropriate type.
+// If both are int64, returns int64. If either is float64, both are promoted to float64.
+func PromoteNumbers(a, b Value) (Value, Value, bool) {
+	aInt, aIsInt := a.(int64)
+	bInt, bIsInt := b.(int64)
+	aFloat, aIsFloat := a.(float64)
+	bFloat, bIsFloat := b.(float64)
+	
+	// Both must be numbers
+	if !(aIsInt || aIsFloat) || !(bIsInt || bIsFloat) {
+		return nil, nil, false
+	}
+	
+	// If both are integers, keep them as integers
+	if aIsInt && bIsInt {
+		return aInt, bInt, true
+	}
+	
+	// Otherwise, promote both to float64
+	if aIsInt {
+		aFloat = float64(aInt)
+	}
+	if bIsInt {
+		bFloat = float64(bInt)
+	}
+	
+	return aFloat, bFloat, true
 }

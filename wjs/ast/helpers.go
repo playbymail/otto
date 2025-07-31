@@ -47,7 +47,13 @@ func writePretty(b *strings.Builder, n Node, indent int) {
 		fmt.Fprintf(b, "%sIdent %q\n", indentStr, node.Name)
 
 	case *NumberLit:
-		fmt.Fprintf(b, "%sNumber %v\n", indentStr, node.Value)
+		if node.IntVal != nil {
+			fmt.Fprintf(b, "%sNumber %d\n", indentStr, *node.IntVal)
+		} else if node.FloatVal != nil {
+			fmt.Fprintf(b, "%sNumber %v\n", indentStr, *node.FloatVal)
+		} else {
+			fmt.Fprintf(b, "%sNumber <invalid>\n", indentStr)
+		}
 
 	case *StringLit:
 		fmt.Fprintf(b, "%sString %q\n", indentStr, node.Value)

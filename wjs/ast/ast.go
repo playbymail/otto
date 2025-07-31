@@ -61,8 +61,9 @@ func (e *Ident) Pos() domain.Pos { return e.Start }
 func (e *Ident) isExpr()         {}
 
 type NumberLit struct {
-	Start domain.Pos
-	Value float64
+	Start   domain.Pos
+	IntVal  *int64   // non-nil if this is an integer
+	FloatVal *float64 // non-nil if this is a float
 }
 
 func (e *NumberLit) Pos() domain.Pos { return e.Start }

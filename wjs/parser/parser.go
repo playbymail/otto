@@ -245,14 +245,27 @@ func (p *Parser) parseIdentifier() ast.Expr {
 
 func (p *Parser) parseNumberLiteral() ast.Expr {
 	token := p.advance()
-	value, err := strconv.ParseFloat(token.Lexeme, 64)
-	if err != nil {
-		return nil // error: invalid number
+	
+	// Try to parse as integer first
+	if intValue, err := strconv.Atoi(token.Lexeme); err == nil {
+		val := int64(intValue)
+		return &ast.NumberLit{
+			Start:   token.Pos,
+			IntVal:  &val,
+			FloatVal: nil,
+		}
 	}
-	return &ast.NumberLit{
-		Start: token.Pos,
-		Value: value,
+	
+	// If not an integer, try parsing as float
+	if floatValue, err := strconv.ParseFloat(token.Lexeme, 64); err == nil {
+		return &ast.NumberLit{
+			Start:   token.Pos,
+			IntVal:  nil,
+			FloatVal: &floatValue,
+		}
 	}
+	
+	return nil // error: invalid number
 }
 
 func (p *Parser) parseStringLiteral() ast.Expr {

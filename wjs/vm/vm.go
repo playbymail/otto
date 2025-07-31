@@ -195,7 +195,13 @@ func (vm *VM) evalExprStmt(stmt *ast.ExprStmt) (Value, *RuntimeError) {
 // Expression evaluation methods
 
 func (vm *VM) evalNumberLit(lit *ast.NumberLit) (Value, *RuntimeError) {
-	return lit.Value, nil
+	if lit.IntVal != nil {
+		return *lit.IntVal, nil
+	}
+	if lit.FloatVal != nil {
+		return *lit.FloatVal, nil
+	}
+	return nil, NewRuntimeError(lit.Pos(), "invalid number literal")
 }
 
 func (vm *VM) evalStringLit(lit *ast.StringLit) (Value, *RuntimeError) {
@@ -256,8 +262,15 @@ func (vm *VM) evalUnaryExpr(expr *ast.UnaryExpr) (Value, *RuntimeError) {
 	
 	switch expr.Operator {
 	case "-":
-		if num, ok := operand.(float64); ok {
-			return -num, nil
+		if IsNumber(operand) {
+			switch val := operand.(type) {
+			case int64:
+				return -val, nil
+			case float64:
+				return -val, nil
+			default:
+				return nil, NewRuntimeError(expr.Pos(), "unexpected number type in unary -")
+			}
 		}
 		return nil, NewRuntimeError(expr.Pos(), "unary - requires a number")
 	case "!":
@@ -368,7 +381,19 @@ func (vm *VM) evalTemplateLit(lit *ast.TemplateLit) (Value, *RuntimeError) {
 
 func (vm *VM) evalAdd(left, right Value, pos domain.Pos) (Value, *RuntimeError) {
 	if IsNumber(left) && IsNumber(right) {
-		return left.(float64) + right.(float64), nil
+		a, b, ok := PromoteNumbers(left, right)
+		if !ok {
+			return nil, NewRuntimeError(pos, "invalid numbers for + operator")
+		}
+		
+		switch aVal := a.(type) {
+		case int64:
+			return aVal + b.(int64), nil
+		case float64:
+			return aVal + b.(float64), nil
+		default:
+			return nil, NewRuntimeError(pos, "unexpected number type in + operator")
+		}
 	}
 	if IsString(left) && IsString(right) {
 		return left.(string) + right.(string), nil
@@ -378,65 +403,157 @@ func (vm *VM) evalAdd(left, right Value, pos domain.Pos) (Value, *RuntimeError) 
 
 func (vm *VM) evalSubtract(left, right Value, pos domain.Pos) (Value, *RuntimeError) {
 	if IsNumber(left) && IsNumber(right) {
-		return left.(float64) - right.(float64), nil
+		a, b, ok := PromoteNumbers(left, right)
+		if !ok {
+			return nil, NewRuntimeError(pos, "invalid numbers for - operator")
+		}
+		
+		switch aVal := a.(type) {
+		case int64:
+			return aVal - b.(int64), nil
+		case float64:
+			return aVal - b.(float64), nil
+		default:
+			return nil, NewRuntimeError(pos, "unexpected number type in - operator")
+		}
 	}
 	return nil, NewRuntimeError(pos, "- operator requires numbers")
 }
 
 func (vm *VM) evalMultiply(left, right Value, pos domain.Pos) (Value, *RuntimeError) {
 	if IsNumber(left) && IsNumber(right) {
-		return left.(float64) * right.(float64), nil
+		a, b, ok := PromoteNumbers(left, right)
+		if !ok {
+			return nil, NewRuntimeError(pos, "invalid numbers for * operator")
+		}
+		
+		switch aVal := a.(type) {
+		case int64:
+			return aVal * b.(int64), nil
+		case float64:
+			return aVal * b.(float64), nil
+		default:
+			return nil, NewRuntimeError(pos, "unexpected number type in * operator")
+		}
 	}
 	return nil, NewRuntimeError(pos, "* operator requires numbers")
 }
 
 func (vm *VM) evalDivide(left, right Value, pos domain.Pos) (Value, *RuntimeError) {
 	if IsNumber(left) && IsNumber(right) {
-		rightNum := right.(float64)
-		if rightNum == 0 {
+		// Division always produces a float result
+		leftFloat, ok1 := ToFloat64(left)
+		rightFloat, ok2 := ToFloat64(right)
+		if !ok1 || !ok2 {
+			return nil, NewRuntimeError(pos, "invalid numbers for / operator")
+		}
+		if rightFloat == 0 {
 			return nil, NewRuntimeError(pos, "division by zero")
 		}
-		return left.(float64) / rightNum, nil
+		return leftFloat / rightFloat, nil
 	}
 	return nil, NewRuntimeError(pos, "/ operator requires numbers")
 }
 
 func (vm *VM) evalModulus(left, right Value, pos domain.Pos) (Value, *RuntimeError) {
 	if IsNumber(left) && IsNumber(right) {
-		rightNum := right.(float64)
-		if rightNum == 0 {
-			return nil, NewRuntimeError(pos, "modulus by zero")
+		a, b, ok := PromoteNumbers(left, right)
+		if !ok {
+			return nil, NewRuntimeError(pos, "invalid numbers for %% operator")
 		}
-		leftNum := left.(float64)
-		return float64(int64(leftNum) % int64(rightNum)), nil
+		
+		switch aVal := a.(type) {
+		case int64:
+			bVal := b.(int64)
+			if bVal == 0 {
+				return nil, NewRuntimeError(pos, "modulus by zero")
+			}
+			return aVal % bVal, nil
+		case float64:
+			bVal := b.(float64)
+			if bVal == 0 {
+				return nil, NewRuntimeError(pos, "modulus by zero")
+			}
+			return float64(int64(aVal) % int64(bVal)), nil
+		default:
+			return nil, NewRuntimeError(pos, "unexpected number type in %% operator")
+		}
 	}
 	return nil, NewRuntimeError(pos, "%% operator requires numbers")
 }
 
 func (vm *VM) evalLess(left, right Value, pos domain.Pos) (Value, *RuntimeError) {
 	if IsNumber(left) && IsNumber(right) {
-		return left.(float64) < right.(float64), nil
+		a, b, ok := PromoteNumbers(left, right)
+		if !ok {
+			return nil, NewRuntimeError(pos, "invalid numbers for < operator")
+		}
+		
+		switch aVal := a.(type) {
+		case int64:
+			return aVal < b.(int64), nil
+		case float64:
+			return aVal < b.(float64), nil
+		default:
+			return nil, NewRuntimeError(pos, "unexpected number type in < operator")
+		}
 	}
 	return nil, NewRuntimeError(pos, "< operator requires numbers")
 }
 
 func (vm *VM) evalGreater(left, right Value, pos domain.Pos) (Value, *RuntimeError) {
 	if IsNumber(left) && IsNumber(right) {
-		return left.(float64) > right.(float64), nil
+		a, b, ok := PromoteNumbers(left, right)
+		if !ok {
+			return nil, NewRuntimeError(pos, "invalid numbers for > operator")
+		}
+		
+		switch aVal := a.(type) {
+		case int64:
+			return aVal > b.(int64), nil
+		case float64:
+			return aVal > b.(float64), nil
+		default:
+			return nil, NewRuntimeError(pos, "unexpected number type in > operator")
+		}
 	}
 	return nil, NewRuntimeError(pos, "> operator requires numbers")
 }
 
 func (vm *VM) evalLessEqual(left, right Value, pos domain.Pos) (Value, *RuntimeError) {
 	if IsNumber(left) && IsNumber(right) {
-		return left.(float64) <= right.(float64), nil
+		a, b, ok := PromoteNumbers(left, right)
+		if !ok {
+			return nil, NewRuntimeError(pos, "invalid numbers for <= operator")
+		}
+		
+		switch aVal := a.(type) {
+		case int64:
+			return aVal <= b.(int64), nil
+		case float64:
+			return aVal <= b.(float64), nil
+		default:
+			return nil, NewRuntimeError(pos, "unexpected number type in <= operator")
+		}
 	}
 	return nil, NewRuntimeError(pos, "<= operator requires numbers")
 }
 
 func (vm *VM) evalGreaterEqual(left, right Value, pos domain.Pos) (Value, *RuntimeError) {
 	if IsNumber(left) && IsNumber(right) {
-		return left.(float64) >= right.(float64), nil
+		a, b, ok := PromoteNumbers(left, right)
+		if !ok {
+			return nil, NewRuntimeError(pos, "invalid numbers for >= operator")
+		}
+		
+		switch aVal := a.(type) {
+		case int64:
+			return aVal >= b.(int64), nil
+		case float64:
+			return aVal >= b.(float64), nil
+		default:
+			return nil, NewRuntimeError(pos, "unexpected number type in >= operator")
+		}
 	}
 	return nil, NewRuntimeError(pos, ">= operator requires numbers")
 }

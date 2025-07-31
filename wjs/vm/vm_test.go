@@ -16,12 +16,12 @@ import (
 func TestVM_NumberLiterals(t *testing.T) {
 	tests := []struct {
 		input    string
-		expected float64
+		expected Value
 	}{
-		{"42", 42},
+		{"42", int64(42)},
 		{"3.14", 3.14},
-		{"0", 0},
-		{"-5", -5},
+		{"0", int64(0)},
+		{"-5", int64(-5)},
 	}
 
 	for _, test := range tests {
@@ -31,7 +31,7 @@ func TestVM_NumberLiterals(t *testing.T) {
 				t.Fatalf("Runtime error: %v", err)
 			}
 			
-			if num, ok := result.(float64); !ok || num != test.expected {
+			if !Equal(result, test.expected) {
 				t.Errorf("Expected %v, got %v", test.expected, result)
 			}
 		})
@@ -68,11 +68,11 @@ func TestVM_BinaryExpressions(t *testing.T) {
 		expected Value
 	}{
 		// Arithmetic
-		{"5 + 3", 8.0},
-		{"10 - 4", 6.0},
-		{"6 * 7", 42.0},
-		{"20 / 4", 5.0},
-		{"17 % 5", 2.0},
+		{"5 + 3", int64(8)},
+		{"10 - 4", int64(6)},
+		{"6 * 7", int64(42)},
+		{"20 / 4", 5.0},        // Division always returns float
+		{"17 % 5", int64(2)},
 		
 		// String concatenation
 		{`"hello" + " world"`, "hello world"},
@@ -107,8 +107,8 @@ func TestVM_UnaryExpressions(t *testing.T) {
 		input    string
 		expected Value
 	}{
-		{"-5", -5.0},
-		{"-(-3)", 3.0},
+		{"-5", int64(-5)},
+		{"-(-3)", int64(3)},
 		{"!true", false},
 		{"!false", true},
 	}
@@ -133,9 +133,9 @@ func TestVM_LetStatements(t *testing.T) {
 		varName  string
 		expected Value
 	}{
-		{"let x = 5;", "x", 5.0},
+		{"let x = 5;", "x", int64(5)},
 		{`let name = "test";`, "name", "test"},
-		{"let result = 3 + 4;", "result", 7.0},
+		{"let result = 3 + 4;", "result", int64(7)},
 	}
 
 	for _, test := range tests {
@@ -174,7 +174,7 @@ func TestVM_Identifiers(t *testing.T) {
 		t.Fatalf("Runtime error: %v", err)
 	}
 	
-	if num, ok := result.(float64); !ok || num != 5 {
+	if !Equal(result, int64(5)) {
 		t.Errorf("Expected 5, got %v", result)
 	}
 }
@@ -191,7 +191,7 @@ func TestVM_AssignmentStatements(t *testing.T) {
 		t.Fatalf("Runtime error: %v", err)
 	}
 	
-	if num, ok := result.(float64); !ok || num != 10 {
+	if !Equal(result, int64(10)) {
 		t.Errorf("Expected 10, got %v", result)
 	}
 }
