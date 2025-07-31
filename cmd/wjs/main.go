@@ -114,9 +114,15 @@ func executeCode(filename, input string) {
 	// TODO: if we're going to check semantics, check them here
 
 	svm := vm.New(filename)
-	if err := svm.Execute(prog); err != nil {
+	result, err := svm.Execute(prog)
+	if err != nil {
 		fmt.Println("Error:", err)
 		os.Exit(1)
+	}
+	
+	// Print the final result if there is one
+	if result != nil && debugMode {
+		fmt.Printf("Result: %v\n", result)
 	}
 
 	if debugMode {
