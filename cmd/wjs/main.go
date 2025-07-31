@@ -89,18 +89,17 @@ func executeCode(filename, input string) {
 
 	// tokenize the input
 	l := lexer.New(filename, input)
-	var tokens []lexer.Token
-	for {
-		tok := l.NextToken()
-		tokens = append(tokens, tok)
-		if tok.Type == lexer.EOF {
-			break
-		}
-	}
+	tokens := l.AllTokens()
 
 	if debugMode {
 		fmt.Println("Tokens:")
-		// TODO: print the tokens with line numbers
+		for i, tok := range tokens {
+			if tok.Type == lexer.EOF {
+				fmt.Printf("%3d: %s\n", i+1, tok)
+			} else {
+				fmt.Printf("%3d: %s at %d:%d\n", i+1, tok, tok.Pos.Line, tok.Pos.Column)
+			}
+		}
 		fmt.Println("---")
 	}
 
