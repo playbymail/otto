@@ -6,8 +6,7 @@ This is the repository for `otto`, a command line tool for TribeNet maps using W
 ## Project Structure
     project-root/
     ├── cmd/                 # Command line applications go here
-    │   ├── otto/            # Otto command
-    │   └── wjs/             # WJS script runner
+    │   └── otto/            # Otto command
     │
     ├── deploy/              # Deployment scripts and configs
     │   ├── deploy.sh
@@ -24,14 +23,6 @@ This is the repository for `otto`, a command line tool for TribeNet maps using W
     │
     ├── tools/               # Development scripts and tools
     │   └── ... (dev tools, bash scripts, etc.)
-    │
-    ├── wjs/                 # WJS script engine
-    │   ├── ast/             # AST code
-    │   ├── domain/          # Shared type definitions and errors
-    │   ├── lexer/           # Lexer code
-    │   ├── parser/          # Parser code
-    │   ├── vm/              # VM code
-    │   └── main.go          # WJS script runner
     │
     ├── .gitattributes
     ├── .gitignore
