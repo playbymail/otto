@@ -2,6 +2,7 @@
 *.md           text eol=lf
 *.sh           text eol=lf
 *.txt          text eol=lf
+*.wjs          text eol=lf
 .gitattributes text eol=lf
 .gitignore     text eol=lf
 LICENSE        text eol=lf

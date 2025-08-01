@@ -86,8 +86,13 @@ func (l *Lexer) NextToken() Token {
 		tok.Type = ASTERISK
 		tok.Lexeme = string(l.ch)
 	case '/':
-		tok.Type = SLASH
-		tok.Lexeme = string(l.ch)
+		if l.peekChar() == '/' {
+			l.skipLineComment()
+			return l.NextToken() // Get next token after comment
+		} else {
+			tok.Type = SLASH
+			tok.Lexeme = string(l.ch)
+		}
 	case '%':
 		tok.Type = PERCENT
 		tok.Lexeme = string(l.ch)
@@ -178,6 +183,17 @@ func (l *Lexer) peekChar() byte {
 
 func (l *Lexer) skipWhitespace() {
 	for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
+		l.readChar()
+	}
+}
+
+func (l *Lexer) skipLineComment() {
+	// Skip the "//"
+	l.readChar()
+	l.readChar()
+	
+	// Skip everything until end of line or end of input
+	for l.ch != '\n' && l.ch != 0 {
 		l.readChar()
 	}
 }

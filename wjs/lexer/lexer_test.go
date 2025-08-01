@@ -80,3 +80,75 @@ func TestAllTokens(t *testing.T) {
 		t.Fatalf("last token should be EOF, got=%q", lastToken.Type)
 	}
 }
+
+func TestLineComments(t *testing.T) {
+	input := `print(5); // This is a comment
+print(10); // Another comment`
+	
+	expected := []struct {
+		expectedType   TokenType
+		expectedLexeme string
+	}{
+		{IDENT, "print"},
+		{LPAREN, "("},
+		{NUMBER, "5"},
+		{RPAREN, ")"},
+		{SEMICOLON, ";"},
+		{IDENT, "print"},
+		{LPAREN, "("},
+		{NUMBER, "10"},
+		{RPAREN, ")"},
+		{SEMICOLON, ";"},
+		{EOF, ""},
+	}
+
+	l := New("test", input)
+
+	for i, tt := range expected {
+		tok := l.NextToken()
+
+		if tok.Type != tt.expectedType {
+			t.Fatalf("tests[%d] - tokentype wrong. expected=%q, got=%q",
+				i, tt.expectedType, tok.Type)
+		}
+
+		if tok.Lexeme != tt.expectedLexeme {
+			t.Fatalf("tests[%d] - literal wrong. expected=%q, got=%q",
+				i, tt.expectedLexeme, tok.Lexeme)
+		}
+	}
+}
+
+func TestDivisionAndComments(t *testing.T) {
+	input := `x / y // Division operation
+z / 2 // Another division`
+	
+	expected := []struct {
+		expectedType   TokenType
+		expectedLexeme string
+	}{
+		{IDENT, "x"},
+		{SLASH, "/"},
+		{IDENT, "y"},
+		{IDENT, "z"},
+		{SLASH, "/"},
+		{NUMBER, "2"},
+		{EOF, ""},
+	}
+
+	l := New("test", input)
+
+	for i, tt := range expected {
+		tok := l.NextToken()
+
+		if tok.Type != tt.expectedType {
+			t.Fatalf("tests[%d] - tokentype wrong. expected=%q, got=%q",
+				i, tt.expectedType, tok.Type)
+		}
+
+		if tok.Lexeme != tt.expectedLexeme {
+			t.Fatalf("tests[%d] - literal wrong. expected=%q, got=%q",
+				i, tt.expectedLexeme, tok.Lexeme)
+		}
+	}
+}
