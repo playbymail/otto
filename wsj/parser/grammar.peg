@@ -1,0 +1,381 @@
+{
+package parser
+
+// NB: including all the imports make the parser generator run a bit more quickly.
+import (
+	"bytes"
+	"errors"
+	"fmt"
+	"io"
+	"math"
+	"os"
+	"sort"
+	"strconv"
+	"strings"
+	"sync"
+	"unicode"
+	"unicode/utf8"
+
+    "github.com/playbymail/otto/wsj/ast"
+)
+
+// helper functions for the generated parser
+
+// coerceExprList ensures that the expression list is never nil
+func coerceExprList(v any) []ast.Expr {
+    if v == nil {
+        return []ast.Expr{}
+    }
+    return v.([]ast.Expr)
+}
+
+func coerceStatementList(v any) []ast.Stmt {
+    if v == nil {
+		return []ast.Stmt{}
+	}
+    items := v.([]interface{})
+    list := make([]ast.Stmt, len(items))
+    for i, s := range items {
+        list[i] = s.(ast.Stmt)
+    }
+	return list
+}
+
+func coerceSuffixList(v any) []ast.Suffix {
+	if v == nil {
+		return []ast.Suffix{}
+	}
+	items := v.([]interface{})
+	list := make([]ast.Suffix, len(items))
+	for i, s := range items {
+		list[i] = s.(ast.Suffix)
+	}
+	return list
+}
+
+func foldLeftBinary(left any, rest []interface{}) (ast.Expr, error) {
+	result := left.(ast.Expr)
+
+	for _, part := range rest {
+		pair := part.([]interface{})
+		op := pair[0].(string)
+		right := pair[1].(ast.Expr)
+
+		result = &ast.BinaryExpr{
+			Left:     result,
+			Operator: op,
+			Right:    right,
+			Pos:      result.Position(), // Or use position of operator if available
+		}
+	}
+
+	return result, nil
+}
+
+func foldRightBinary(left any, rest []interface{}) (ast.Expr, error) {
+	// Base case: no operators
+	if len(rest) == 0 {
+		return left.(ast.Expr), nil
+	}
+
+	// Right-to-left fold
+	// Start from the rightmost pair and work backward
+	last := rest[len(rest)-1].([]interface{})
+	op := last[0].(string)
+	right := last[1].(ast.Expr)
+
+	// Fold tail recursively
+	headExpr, err := foldRightBinary(left, rest[:len(rest)-1])
+	if err != nil {
+		return nil, err
+	}
+
+	return &ast.BinaryExpr{
+		Left:     headExpr,
+		Operator: op,
+		Right:    right,
+		Pos:      headExpr.Position(), // Optional: use operator position if available
+	}, nil
+}
+
+}
+
+Program <- stmts:Statement* EOF {
+    return &ast.Program{
+        Statements: coerceStatementList(stmts),
+        Pos: ast.Pos{Line: c.pos.line, Column: c.pos.col},
+    }, nil
+}
+
+Statement <- s:LetStmt { return s, nil }
+          / s:AssignStmt { return s, nil }
+          / s:ExprStmt { return s, nil }
+
+LetStmt <- "let" name:Ident "=" value:Expression ";" {
+    return &ast.LetStmt{
+        Name: name.(*ast.Ident),
+        Value: value.(ast.Expr),
+        Pos: ast.Pos{Line: c.pos.line, Column: c.pos.col},
+    }, nil
+}
+
+AssignStmt <- target:Target "=" value:Expression ";" {
+    return &ast.AssignStmt{
+        Target: target.(ast.Expr),
+        Value:  value.(ast.Expr),
+        Pos: ast.Pos{Line: c.pos.line, Column: c.pos.col},
+    }, nil
+}
+
+Target <- base:Ident suffix:("." Ident / "[" Expression "]")? {
+    b := base.(*ast.Ident)
+    if suffix == nil {
+        return b, nil
+    }
+
+    pair := suffix.([]interface{})
+    switch pair[0] {
+    case ".":
+        return &ast.MemberExpr{
+            Object: b,
+            Name:   pair[1].(*ast.Ident),
+            Pos:    b.Position(), // or use c.Pos
+        }, nil
+    case "[":
+        return &ast.IndexExpr{
+            Target: b,
+            Index:  pair[1].(ast.Expr),
+            Pos:    b.Position(), // or use c.Pos
+        }, nil
+    default:
+        return nil, fmt.Errorf("unexpected suffix operator %v", pair[0])
+    }
+}
+
+
+ExprStmt <- e:Expression ";" {
+    startOfExpression := e.(ast.Expr).Position()
+    return &ast.ExprStmt{
+        Expr: e.(ast.Expr),
+        Pos: startOfExpression,
+    }, nil
+}
+
+Expression <- eq:Equality {
+    return eq, nil
+}
+
+Equality <- left:Comparison rest:(( "==" / "!=" ) right:Comparison)? {
+    base := left.(ast.Expr)
+    if rest == nil {
+        return base, nil
+    }
+
+    for _, pair := range rest.([]interface{}) {
+        opPair := pair.([]interface{})
+        op := opPair[0].(string)
+        right := opPair[1].(ast.Expr)
+
+        base = &ast.BinaryExpr{
+            Left:     base,
+            Operator: op,
+            Right:    right,
+            Pos:      base.Position(), // or use op position if needed
+        }
+    }
+    return base, nil
+}
+
+Comparison <- left:Term rest:((">" / "<" / ">=" / "<=") right:Term)? {
+    l := left.(ast.Expr)
+    if rest == nil {
+        return l, nil
+    }
+
+    pair := rest.([]interface{})
+    op := pair[0].(string)
+    r := pair[1].(ast.Expr)
+
+    return &ast.BinaryExpr{
+        Left:     l,
+        Operator: op,
+        Right:    r,
+        Pos:      l.Position(),
+    }, nil
+}
+
+Term <- left:Factor rest:(("+" / "-") right:Factor)* {
+    return foldLeftBinary(left, rest.([]interface{}))
+}
+
+Factor <- left:Unary rest:(("*" / "/" / "%") right:Unary)* {
+    return foldLeftBinary(left, rest.([]interface{}))
+}
+
+Unary <- op:("-" / "!")? expr:PostfixExpr {
+    e := expr.(ast.Expr)
+
+    if op == nil {
+        return e, nil
+    }
+
+    return &ast.UnaryExpr{
+        Operator: op.(string),
+        Expr:     e,
+        Pos: ast.Pos{Line: c.pos.line, Column: c.pos.col},
+    }, nil
+}
+
+Primary <- l:Literal {
+    return l, nil
+} / i:Ident {
+    return i, nil
+} / "(" e:Expression ")" {
+    return e, nil
+}
+
+PostfixExpr <- base:Primary rest:PostfixOp* {
+    suffixes := coerceSuffixList(rest)
+    return ast.ApplySuffixes(base.(ast.Expr), suffixes), nil
+}
+
+PostfixOp <- cs:CallOp {
+    return cs, nil
+} / is:IndexOp {
+    return is, nil
+} / ms:MemberOp {
+    return ms, nil
+}
+
+CallOp <- "(" el:ExpressionList? ")" {
+    return &ast.CallSuffix{
+        Args: coerceExprList(el),
+        Pos: ast.Pos{Line: c.pos.line, Column: c.pos.col},
+    }, nil
+}
+
+IndexOp <- "[" e:Expression "]" {
+    return &ast.IndexSuffix{
+        Index: e.(ast.Expr),
+        Pos: ast.Pos{Line: c.pos.line, Column: c.pos.col},
+    }, nil
+}
+
+MemberOp <- "." i:Ident {
+    return &ast.MemberSuffix{
+        Name: i.(*ast.Ident),
+        Pos: ast.Pos{Line: c.pos.line, Column: c.pos.col},
+    }, nil
+}
+
+// todo: Generalize callee to allow more than Ident
+// If you’re later supporting foo.bar() or (fn)(1), change callee:Ident to callee:Primary or PostfixExpr, e.g.:
+//    CallExpr <- callee:Primary "(" args:ExpressionList? ")" {
+// This allows more expressive calls like:
+//    (foo.bar)(5)
+//    (print)(1)
+
+CallExpr <- callee:Ident "(" args:ExpressionList? ")" {
+    var exprs []ast.Expr
+    if args != nil {
+        exprs = args.([]ast.Expr)
+    } else {
+        exprs = []ast.Expr{}
+    }
+
+    return &ast.CallExpr{
+        Callee: callee.(ast.Expr),
+        Args:   exprs,
+        Pos: ast.Pos{Line: c.pos.line, Column: c.pos.col},
+    }, nil
+}
+
+IndexExpr <- target:Primary "[" index:Expression "]" {
+    return &ast.IndexExpr{
+        Target: target.(ast.Expr),
+        Index:  index.(ast.Expr),
+        Pos: ast.Pos{Line: c.pos.line, Column: c.pos.col},
+    }, nil
+}
+
+MemberExpr <- obj:Primary "." ident:Ident {
+    return &ast.MemberExpr{
+        Object: obj.(ast.Expr),
+        Name:   ident.(*ast.Ident),
+        Pos: ast.Pos{Line: c.pos.line, Column: c.pos.col},
+    }, nil
+}
+
+ExpressionList <- first:Expression rest:("," expr:Expression)* {
+    list := []ast.Expr{first.(ast.Expr)}
+    for _, item := range rest.([]interface{}) {
+        pair := item.([]interface{})
+        expr := pair[1].(ast.Expr) // skip comma
+        list = append(list, expr)
+    }
+    return list, nil
+}
+
+Literal <- nl:Number {
+    return nl, nil
+} / s:String {
+    return &ast.StringLiteral{
+        Value: s.(string),
+        Pos: ast.Pos{Line: c.pos.line, Column: c.pos.col},
+    }, nil
+} / "true" {
+    return &ast.BoolLiteral{
+        Value: true,
+        Pos: ast.Pos{Line: c.pos.line, Column: c.pos.col},
+    }, nil
+} / "false" {
+    return &ast.BoolLiteral{
+        Value: false,
+        Pos: ast.Pos{Line: c.pos.line, Column: c.pos.col},
+    }, nil
+} / "null" {
+    return &ast.NullLiteral{
+        Pos: ast.Pos{Line: c.pos.line, Column: c.pos.col},
+    }, nil
+    return nil, nil
+}
+
+Number <- nl:Float { return nl, nil } / nl:Int { return nl, nil }
+
+Float <- [0-9]+ "." [0-9]+ {
+    f, err := strconv.ParseFloat(string(c.text), 64)
+    return &ast.NumberLiteral{
+        Value: f,
+        Pos: ast.Pos{Line: c.pos.line, Column: c.pos.col},
+    }, err
+}
+
+Int <- [0-9]+ {
+    i, err := strconv.Atoi(string(c.text))
+    return &ast.NumberLiteral{
+        Value: int64(i),
+        Pos: ast.Pos{Line: c.pos.line, Column: c.pos.col},
+    }, err
+}
+
+Ident  <- [a-zA-Z] [a-zA-Z0-9_]* {
+    text := string(c.text)
+    switch text {
+    case "let", "true", "false", "null":
+        return nil, fmt.Errorf("reserved keyword %q cannot be used as identifier", text)
+    }
+    return &ast.Ident{
+        Name: text,
+        Pos: ast.Pos{Line: c.pos.line, Column: c.pos.col},
+    }, nil
+}
+
+String <- "\"" ( [^"\\] / "\\" . )* "\"" {
+    return string(c.text), nil
+}
+
+EOF <- !.
+DIGIT <- [0-9]
+LETTER <- [A-Z]
+SP <- [ \t]+
+_ <- [ \t]*
